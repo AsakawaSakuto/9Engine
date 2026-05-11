@@ -138,7 +138,7 @@ ComPtr<ID3D12Resource> CreateBufferResource(ID3D12Device* device, size_t sizeInB
 }
 
 ComPtr<ID3D12Resource> CreateTextureResource(ID3D12Device* device, const DirectX::TexMetadata& metadata) {
-    // metadataを基にResourceの設定 2-1
+    // metadataを基にResourceの設定
     D3D12_RESOURCE_DESC resourceDesc{};
     resourceDesc.Width = UINT(metadata.width); // Textureの幅
     resourceDesc.Height = UINT(metadata.height); // Textureの高さ
@@ -148,19 +148,17 @@ ComPtr<ID3D12Resource> CreateTextureResource(ID3D12Device* device, const DirectX
     resourceDesc.SampleDesc.Count = 1; // サンプリングカウント。1固定。
     resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION(metadata.dimension); // Textureの次元数。昔使っているのは2次元
 
-    // 利用するHeapの設定 2-2
+    // 利用するHeapの設定（VRAM上に配置）
     D3D12_HEAP_PROPERTIES heapProperties{};
-    heapProperties.Type = D3D12_HEAP_TYPE_CUSTOM; // 細かい設定を行う
-    heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK; // WriteBackポリシーでCPUアクセス可能
-    heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0; // プロセッサの近くに配置
+    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // VRAM上に作成
 
-    // Resourceの生成 2-3
+    // Resourceの生成（コピー先として初期状態を COPY_DEST に設定）
     ComPtr<ID3D12Resource> resource;
     HRESULT hr = device->CreateCommittedResource(
         &heapProperties,
         D3D12_HEAP_FLAG_NONE,
         &resourceDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        D3D12_RESOURCE_STATE_COPY_DEST, // 初期状態をコピー先に設定
         nullptr,
         IID_PPV_ARGS(&resource));
     assert(SUCCEEDED(hr));
@@ -201,6 +199,92 @@ void UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mip
         );
         assert(SUCCEEDED(hr_));
     }
+}
+
+Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureDataToVRAM(
+    ID3D12Device* device,
+    ID3D12GraphicsCommandList* commandList,
+    ID3D12Resource* texture,
+    const DirectX::ScratchImage& mipImages) 
+{
+    // メタデータを取得
+    const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
+
+    // サブリソース数を計算（ミップレベル × 配列サイズ（CubeMapの場合は6））
+    UINT numSubresources = static_cast<UINT>(metadata.mipLevels * metadata.arraySize);
+
+    // 中間リソースに必要なサイズを計算
+    UINT64 intermediateSize = GetRequiredIntermediateSize(texture, 0, numSubresources);
+
+    // UPLOAD ヒープに中間リソースを作成
+    D3D12_HEAP_PROPERTIES uploadHeapProps{};
+    uploadHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+    D3D12_RESOURCE_DESC uploadResourceDesc{};
+    uploadResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    uploadResourceDesc.Width = intermediateSize;
+    uploadResourceDesc.Height = 1;
+    uploadResourceDesc.DepthOrArraySize = 1;
+    uploadResourceDesc.MipLevels = 1;
+    uploadResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uploadResourceDesc.SampleDesc.Count = 1;
+    uploadResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    uploadResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
+    HRESULT hr = device->CreateCommittedResource(
+        &uploadHeapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &uploadResourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&intermediateResource));
+    assert(SUCCEEDED(hr));
+
+    // サブリソースデータを準備
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+    subresources.reserve(numSubresources);
+
+    // 全てのサブリソース（ミップレベル × 配列インデックス）について
+    for (size_t arrayIndex = 0; arrayIndex < metadata.arraySize; ++arrayIndex) {
+        for (size_t mipLevel = 0; mipLevel < metadata.mipLevels; ++mipLevel) {
+            // イメージを取得（arrayIndex はCubeMapの面番号、mipLevel はミップレベル）
+            const DirectX::Image* img = mipImages.GetImage(mipLevel, arrayIndex, 0);
+            assert(img != nullptr);
+
+            // サブリソースデータを構築
+            D3D12_SUBRESOURCE_DATA subresource{};
+            subresource.pData = img->pixels;
+            subresource.RowPitch = static_cast<LONG_PTR>(img->rowPitch);
+            subresource.SlicePitch = static_cast<LONG_PTR>(img->slicePitch);
+
+            subresources.push_back(subresource);
+        }
+    }
+
+    // UpdateSubresources を使って中間リソースからVRAMリソースへコピー
+    UpdateSubresources(
+        commandList,
+        texture,
+        intermediateResource.Get(),
+        0,
+        0,
+        numSubresources,
+        subresources.data());
+
+    // リソースバリアを設定：COPY_DEST → GENERIC_READ（シェーダーで読み取り可能に）
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+    barrier.Transition.pResource = texture;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+    commandList->ResourceBarrier(1, &barrier);
+
+    // 中間リソースを返す（呼び出し側でGPU完了まで保持する必要がある）
+    return intermediateResource;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index)

@@ -169,42 +169,52 @@ void TextureManager::LoadTexture(const std::string& filePath) {
         return;
     }
 
-    // sRGBとして読み込む（ガンマ補正が正しく適用されるように）
-    HRESULT hr = DirectX::LoadFromWICFile(
-        filePathW.c_str(),
-        DirectX::WIC_FLAGS_FORCE_SRGB,  // sRGBフォーマットとして強制読み込み
-        nullptr,
-        image);
-    
+    HRESULT hr;
+    if (filePathW.ends_with(L".dds")) {
+        // .ddsで終わっていたらddsとみなす
+        hr = DirectX::LoadFromDDSFile(filePathW.c_str(), DirectX::DDS_FLAGS_NONE, nullptr, image);
+    } else {
+        // sRGBとして読み込む（ガンマ補正が正しく適用されるように）
+        hr = DirectX::LoadFromWICFile(
+            filePathW.c_str(),
+            DirectX::WIC_FLAGS_FORCE_SRGB,  // sRGBフォーマットとして強制読み込み
+            nullptr,
+            image);
+    }
+
     if (FAILED(hr)) {
-        Logger::Error("Failed to load texture (WIC): " + safeFilePath);
+        Logger::Error("Failed to load texture: " + safeFilePath);
         return;
     }
 
     // ミップマップの参照を保持する変数
-    const DirectX::ScratchImage* finalImage = &image;
     DirectX::ScratchImage mipImages{};
 
-    // テクスチャが1x1ピクセルより大きい場合のみミップマップを生成
-    const DirectX::TexMetadata& metadata = image.GetMetadata();
-    if (metadata.width > 1 || metadata.height > 1) {
-        // ミップマップ生成（sRGBフィルタを使用）
-        hr = DirectX::GenerateMipMaps(
-            image.GetImages(),
-            image.GetImageCount(),
-            image.GetMetadata(),
-            DirectX::TEX_FILTER_SRGB,  // sRGBガンマを考慮したフィルタリング
-            0,
-            mipImages);
-        
-        if (FAILED(hr)) {
-            Logger::Error("Failed to generate mipmaps: " + safeFilePath);
-            return;
-        }
-        finalImage = &mipImages;
+    if (DirectX::IsCompressed(image.GetMetadata().format)) {
+        // 圧縮フォーマットかどうかを調べる
+        mipImages = std::move(image); // 圧縮フォーマットならそのまま使うのでmoveする
     } else {
-        // 1x1ピクセルの場合はミップマップ生成をスキップ
-        OutputDebugStringA("  -> Skipping mipmap generation for 1x1 texture\n");
+        // テクスチャが1x1ピクセルより大きい場合のみミップマップを生成
+        const DirectX::TexMetadata& metadata = image.GetMetadata();
+        if (metadata.width > 1 || metadata.height > 1) {
+            // ミップマップ生成（sRGBフィルタを使用）
+            hr = DirectX::GenerateMipMaps(
+                image.GetImages(),
+                image.GetImageCount(),
+                image.GetMetadata(),
+                DirectX::TEX_FILTER_SRGB,  // sRGBガンマを考慮したフィルタリング
+                4,
+                mipImages);
+
+            if (FAILED(hr)) {
+                Logger::Error("Failed to generate mipmaps: " + safeFilePath);
+                return;
+            }
+        } else {
+            // 1x1ピクセルの場合はミップマップ生成をスキップ
+            OutputDebugStringA("  -> Skipping mipmap generation for 1x1 texture\n");
+            mipImages = std::move(image);
+        }
     }
 
     // 先に index を確保
@@ -221,14 +231,37 @@ void TextureManager::LoadTexture(const std::string& filePath) {
     auto it = texturePathToIndex_.find(safeFilePath);
     assert(it != texturePathToIndex_.end());
     textureData.filePath = it->first;  // map の key を参照（寿命が保証される）
-    
-    textureData.metadata = finalImage->GetMetadata();
+
+    textureData.metadata = mipImages.GetMetadata();
     textureData.resource = CreateTextureResource(device_.Get(), textureData.metadata);
-    UploadTextureData(textureData.resource.Get(), *finalImage);
+
+    // コマンドリストを取得してVRAMアップロードを実行
+    auto commandList = dxCommon_->GetCommandList();
+    textureData.intermediateResource = UploadTextureDataToVRAM(
+        device_.Get(), 
+        commandList.Get(), 
+        textureData.resource.Get(), 
+        mipImages);
+
+    // コマンドリストをクローズして実行
+    HRESULT hr_exec = commandList->Close();
+    assert(SUCCEEDED(hr_exec));
+
+    ID3D12CommandList* commandLists[] = { commandList.Get() };
+    dxCommon_->GetCommandQueue()->ExecuteCommandLists(1, commandLists);
+
+    // GPUの処理完了を待機
+    dxCommon_->WaitForGPU();
+
+    // コマンドリストをリセット
+    dxCommon_->ResetCommand();
+
+    // GPU処理完了後、中間リソースを解放（自動的にComPtrのデストラクタで解放される）
+    textureData.intermediateResource.Reset();
 
     // SRV登録位置を計算
     uint32_t srvIndex = index + kSRVIndexTop_;
-    
+
     assert(srvIndex >= DirectXCommon::kTextureSRVBegin);
     assert(srvIndex <= DirectXCommon::kTextureSRVEnd && "Texture SRV range exceeded. Increase range or free slots.");
 
@@ -242,13 +275,27 @@ void TextureManager::LoadTexture(const std::string& filePath) {
         dxCommon_->GetDescriptorSizeSRV(),
         srvIndex);
 
-    // SRV作成
-    // UNORMフォーマットの場合はsRGBフォーマットに変換して、
-    // GPUがサンプリング時に正しくsRGB→線形変換を行うようにする
+    // metaDataを基にSRVの設定
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-    srvDesc.Format = ConvertToSRGBFormat(textureData.metadata.format);
+    srvDesc.Format = textureData.metadata.format;
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = UINT(textureData.metadata.mipLevels);
+
+    // metadataからcubemapかどうかを取得できるので利用して分岐
+    if (textureData.metadata.IsCubemap()) {
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.TextureCube.MostDetailedMip = 0; // unionがTextureCubeになったが、内部パラメータの意味はTexture2dと変わらない
+        srvDesc.TextureCube.MipLevels = UINT_MAX;
+        srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+    } else {
+        // 今まで通り2d textureの設定を行う
+        // UNORMフォーマットの場合はsRGBフォーマットに変換して、
+        // GPUがサンプリング時に正しくsRGB→線形変換を行うようにする
+        if (!filePathW.ends_with(L".dds")) {
+            srvDesc.Format = ConvertToSRGBFormat(textureData.metadata.format);
+        }
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = UINT(textureData.metadata.mipLevels);
+    }
+
     device_->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, textureData.srvHandleCPU);
 }

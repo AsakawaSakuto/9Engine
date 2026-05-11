@@ -13,19 +13,28 @@ void TestScene::CleanupResources() {
 }
 
 void TestScene::Initialize() {
-    nowSceneName_ = SCENE::TEST;
-    
-    CleanupResources();
-	
+	nowSceneName_ = SCENE::TEST;
 
+	CleanupResources();
+
+	debugCamera_.SetInput(MyInput::GetInput());
+
+	// SkyBoxの初期化
+	skyBox_.Initialize("resources/Image/rostock_laage_airport_4k.dds");
+	skyBox_.SetScale(1000.0f);
 }
 
 void TestScene::Update() {
+	debugCamera_.Update();
 
+	MyDebugLine::AddGrid(100.0f, 10.0f, WHITE);
 }
 
 void TestScene::Draw() {
+	// SkyBoxを最初に描画（遠景）
+	skyBox_.Draw(debugCamera_);
 
+	MyDebugLine::Draw(debugCamera_);
 }
 
 void TestScene::DrawImGui() {

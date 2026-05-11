@@ -108,6 +108,7 @@
     <ClCompile Include="Application\GameObject\Player\UpgradeManager\UpgradeManager.cpp" />
     <ClCompile Include="Application\SceneManager\Scene\StartScene.cpp" />
     <ClCompile Include="Application\Ranking\RankingManager.cpp" />
+    <ClCompile Include="Engine\3d\SkyBox\SkyBox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\EngineSystem.h" />
@@ -262,6 +263,7 @@
     <ClInclude Include="Application\Ranking\RankingManager.h" />
     <ClInclude Include="Application\GameObject\EnemyManager\EnemySpawnConfig.h" />
     <ClInclude Include="Engine\Audio\AudioList.h" />
+    <ClInclude Include="Engine\3d\SkyBox\SkyBox.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Model\Object3d.hlsli" />

@@ -39,4 +39,7 @@ enum class PSOType {
 
     // Line用（デバッグ表示・可視化）
     Line_Normal,
+
+    // SkyBox用
+    SkyBox_Normal,
 };

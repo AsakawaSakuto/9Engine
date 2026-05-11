@@ -46,6 +46,20 @@ DirectX::ScratchImage LoadTexture(const std::string& filePath);
 
 void UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages);
 
+/// <summary>
+/// テクスチャデータをVRAMにアップロードする（コマンドリスト使用）
+/// </summary>
+/// <param name="device">D3D12デバイス</param>
+/// <param name="commandList">コマンドリスト</param>
+/// <param name="texture">転送先のテクスチャリソース（DEFAULT ヒープ）</param>
+/// <param name="mipImages">転送元のイメージデータ</param>
+/// <returns>中間リソース（GPU実行完了まで保持必須）</returns>
+[[nodiscard]] Microsoft::WRL::ComPtr<ID3D12Resource> UploadTextureDataToVRAM(
+    ID3D12Device* device,
+    ID3D12GraphicsCommandList* commandList,
+    ID3D12Resource* texture,
+    const DirectX::ScratchImage& mipImages);
+
 ModeldMaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
 ModelData LoadObject3dFile(const std::string& filepath);
