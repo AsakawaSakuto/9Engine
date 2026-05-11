@@ -13,6 +13,7 @@
 #include "Map/TreeManager/TreeManager.h"
 #include "GameUI/GameSceneUI/GameSceneUI.h"
 #include "Ranking/RankingManager.h"
+#include"3d/SkyBox/SkyBox.h"
 
 using Microsoft::WRL::ComPtr;
 using std::unique_ptr;
@@ -99,4 +100,6 @@ private:
 	// ランキング管理
 	unique_ptr<RankingManager> rankingManager_ = make_unique<RankingManager>();
 	bool rankingSaved_ = false; // ランキング保存済みフラグ
+
+	SkyBox skyBox_;
 };
