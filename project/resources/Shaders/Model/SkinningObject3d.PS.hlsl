@@ -109,7 +109,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             // CubeMap から環境光をサンプリング
             float3 environmentColor = gEnvironmentMap.Sample(gSampler, reflectionVector).rgb;
             // 環境光を鏡面反射成分として加算（強度調整可能）
-            environmentReflection = environmentColor * gMaterial.shininess * 0.01f;
+            environmentReflection = environmentColor * gMaterial.shininess * 0.005;
         }
 
         output.color.rgb = diffuse1 + specular1 + diffuse2 + specular2 + diffuse3 + specular3 + environmentReflection;
