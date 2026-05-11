@@ -163,14 +163,14 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::CreatePSOOnDemand(PSOTyp
             params.rootSignature = GetRootSignature("Skinning"); // Skinning専用RootSignature
             params.inputLayout = CreateInputLayout("Skinning"); // Skinning専用InputLayout
             params.vertexShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.VS.hlsl", L"vs_6_0");
-            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/Object3d.PS.hlsl", L"ps_6_0");
+            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.PS.hlsl", L"ps_6_0");
             break;
             
         case PSOType::SkinningModel_Solid_Add:
             params.rootSignature = GetRootSignature("Skinning"); // Skinning専用RootSignature
             params.inputLayout = CreateInputLayout("Skinning"); // Skinning専用InputLayout
             params.vertexShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.VS.hlsl", L"vs_6_0");
-            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/Object3d.PS.hlsl", L"ps_6_0");
+            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.PS.hlsl", L"ps_6_0");
             params.blendState = CreateBlendState("Add");
             break;
             
@@ -178,7 +178,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::CreatePSOOnDemand(PSOTyp
             params.rootSignature = GetRootSignature("Skinning"); // Skinning専用RootSignature
             params.inputLayout = CreateInputLayout("Skinning"); // Skinning専用InputLayout
             params.vertexShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.VS.hlsl", L"vs_6_0");
-            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/Object3d.PS.hlsl", L"ps_6_0");
+            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.PS.hlsl", L"ps_6_0");
             params.rasterizerState = CreateRasterizerState("Wireframe");
             break;
             
@@ -186,7 +186,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::CreatePSOOnDemand(PSOTyp
             params.rootSignature = GetRootSignature("Skinning"); // Skinning専用RootSignature
             params.inputLayout = CreateInputLayout("Skinning"); // Skinning専用InputLayout
             params.vertexShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.VS.hlsl", L"vs_6_0");
-            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/Object3d.PS.hlsl", L"ps_6_0");
+            params.pixelShader = GetOrCompileShader(L"resources/shaders/Model/SkinningObject3d.PS.hlsl", L"ps_6_0");
             params.blendState = CreateBlendState("Normal"); // アルファブレンド
             params.depthStencilState = CreateDepthStencilState("Particle"); // 深度書き込み無効
             params.rasterizerState = CreateRasterizerState("Solid_NoCull"); // 両面表示
@@ -473,12 +473,17 @@ void PSOManager::CreateRootSignatures() {
         D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
         descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-        // DescriptorRange
-        D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
-        descriptorRange[0].BaseShaderRegister = 0;
+        // DescriptorRange（2つ: テクスチャ t0 と 環境マップ t1）
+        D3D12_DESCRIPTOR_RANGE descriptorRange[2] = {};
+        descriptorRange[0].BaseShaderRegister = 0; // t0
         descriptorRange[0].NumDescriptors = 1;
         descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        descriptorRange[1].BaseShaderRegister = 1; // t1
+        descriptorRange[1].NumDescriptors = 1;
+        descriptorRange[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        descriptorRange[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
         // Sampler
         D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
@@ -493,9 +498,9 @@ void PSOManager::CreateRootSignatures() {
         descriptionRootSignature.pStaticSamplers = staticSamplers;
         descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
-        // Root Parameters
-        D3D12_ROOT_PARAMETER rootParameters[7] = {};
-        
+        // Root Parameters（8個: 既存7個 + 環境マップ用1個）
+        D3D12_ROOT_PARAMETER rootParameters[8] = {};
+
         // b0: Material (PS)
         rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -509,8 +514,8 @@ void PSOManager::CreateRootSignatures() {
         // t0: Texture (PS)
         rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-        rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
-        rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+        rootParameters[2].DescriptorTable.pDescriptorRanges = &descriptorRange[0];
+        rootParameters[2].DescriptorTable.NumDescriptorRanges = 1;
 
         // b2: DirectionalLight (PS)
         rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -532,6 +537,12 @@ void PSOManager::CreateRootSignatures() {
         rootParameters[6].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
         rootParameters[6].Descriptor.ShaderRegister = 5;
 
+        // t1: EnvironmentMap (PS) - TextureCube
+        rootParameters[7].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        rootParameters[7].DescriptorTable.pDescriptorRanges = &descriptorRange[1];
+        rootParameters[7].DescriptorTable.NumDescriptorRanges = 1;
+
         descriptionRootSignature.pParameters = rootParameters;
         descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -550,14 +561,14 @@ void PSOManager::CreateRootSignatures() {
         rootSignatures_["Object3D"] = rootSignature;
     }
 
-    // Skinning用のRoot Signature（Object3D + t1: MatrixPalette）
+    // Skinning用のRoot Signature（Object3D + t1: MatrixPalette + t2: EnvironmentMap）
     {
         D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
         descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-        // DescriptorRange (2つ: テクスチャt0とMatrixPalette t1)
-        D3D12_DESCRIPTOR_RANGE descriptorRanges[2] = {};
-        
+        // DescriptorRange (3つ: テクスチャt0、MatrixPalette t1、EnvironmentMap t2)
+        D3D12_DESCRIPTOR_RANGE descriptorRanges[3] = {};
+
         // t0: Texture (PS)
         descriptorRanges[0].BaseShaderRegister = 0;
         descriptorRanges[0].NumDescriptors = 1;
@@ -569,6 +580,12 @@ void PSOManager::CreateRootSignatures() {
         descriptorRanges[1].NumDescriptors = 1;
         descriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
         descriptorRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+        // t2: EnvironmentMap (PS) - TextureCube
+        descriptorRanges[2].BaseShaderRegister = 2;
+        descriptorRanges[2].NumDescriptors = 1;
+        descriptorRanges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        descriptorRanges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
         // Sampler
         D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
@@ -583,9 +600,9 @@ void PSOManager::CreateRootSignatures() {
         descriptionRootSignature.pStaticSamplers = staticSamplers;
         descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
-        // Root Parameters (8個: Object3Dの7個 + MatrixPalette用1個)
-        D3D12_ROOT_PARAMETER rootParameters[8] = {};
-        
+        // Root Parameters (9個: Object3Dの7個 + MatrixPalette用1個 + EnvironmentMap用1個)
+        D3D12_ROOT_PARAMETER rootParameters[9] = {};
+
         // b0: Material (PS)
         rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -627,6 +644,12 @@ void PSOManager::CreateRootSignatures() {
         rootParameters[7].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
         rootParameters[7].DescriptorTable.pDescriptorRanges = &descriptorRanges[1];
         rootParameters[7].DescriptorTable.NumDescriptorRanges = 1;
+
+        // t2: EnvironmentMap (PS) - TextureCube
+        rootParameters[8].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rootParameters[8].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        rootParameters[8].DescriptorTable.pDescriptorRanges = &descriptorRanges[2];
+        rootParameters[8].DescriptorTable.NumDescriptorRanges = 1;
 
         descriptionRootSignature.pParameters = rootParameters;
         descriptionRootSignature.NumParameters = _countof(rootParameters);

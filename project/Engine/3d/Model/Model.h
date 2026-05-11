@@ -119,6 +119,12 @@ public:
 	void SetTexture(const std::string& textureName);
 
 	/// <summary>
+	/// 環境マップ（CubeMap）を設定
+	/// </summary>
+	/// <param name="textureName">CubeMapテクスチャのパス</param>
+	void SetEnvironmentMap(const std::string& textureName);
+
+	/// <summary>
 	/// テクスチャの一部を切り取って設定
 	/// </summary>
 	/// <param name="textureName">Pathカット無し、全部入力してね</param>
@@ -241,7 +247,12 @@ private:
 	// テクスチャ関連
 	std::string textureName_;   // 使用テクスチャファイルパス
 	uint32_t textureIndex_ = 0; // 使用テクスチャインデックス
-	
+
+	// 環境マップ（CubeMap）関連
+	std::string environmentMapName_;   // 環境マップテクスチャファイルパス
+	uint32_t environmentMapIndex_ = 0; // 環境マップテクスチャインデックス
+	bool useEnvironmentMap_ = false;   // 環境マップ使用フラグ
+
 	// マルチマテリアル対応
 	std::vector<std::string> textureNames_;   // 複数のテクスチャファイルパス
 	std::vector<uint32_t> textureIndices_;    // 複数のテクスチャインデックス

@@ -7,7 +7,8 @@ ConstantBuffer<PointLight> gPointLight : register(b4);
 ConstantBuffer<SpotLight> gSpotLight : register(b5);
 
 Texture2D<float4> gTexture : register(t0);
-TextureCube<float4> gEnvironmentMap : register(t1);
+// Skinning では t1 は MatrixPalette なので、環境マップは t2 に配置
+TextureCube<float4> gEnvironmentMap : register(t2);
 SamplerState gSampler : register(s0);
 
 struct PixelShaderOutput
@@ -107,8 +108,8 @@ PixelShaderOutput main(VertexShaderOutput input)
             float3 reflectionVector = reflect(cameraToPosition, N);
             // CubeMap から環境光をサンプリング
             float3 environmentColor = gEnvironmentMap.Sample(gSampler, reflectionVector).rgb;
-            // 環境光を鏡面反射成分として加算（強度を抑える）
-            environmentReflection = environmentColor * 0.02f;
+            // 環境光を鏡面反射成分として加算（強度調整可能）
+            environmentReflection = environmentColor * gMaterial.shininess * 0.01f;
         }
 
         output.color.rgb = diffuse1 + specular1 + diffuse2 + specular2 + diffuse3 + specular3 + environmentReflection;

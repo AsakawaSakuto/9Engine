@@ -3,8 +3,9 @@
 void AnimationController::Initialize(std::map<PlayerMotion, Animation> animationMap) {
 	model_ = std::make_unique<SkiningModel>();
 	model_->Initialize("Player/Animation/idle.gltf");
-	model_->SetTexture("resources/image/white16x16.png");
-	//model_->UseLight(false);
+	//model_->SetTexture("resources/image/white16x16.png");
+	model_->SetEnvironmentMap("resources/Image/rostock_laage_airport_4k.dds");
+	model_->UseLight(true);
 
 	shadowModel_ = std::make_unique<SkiningModel>();
 	shadowModel_->Initialize("Player/Animation/idle.gltf");
