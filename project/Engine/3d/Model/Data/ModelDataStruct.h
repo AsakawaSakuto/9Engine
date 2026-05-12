@@ -21,7 +21,8 @@ struct ModelVertexData {
 struct ModelMaterial {
     Vector4 color;
     int32_t enableLighting;
-    float pad1[3];
+    int32_t useEnvironmentMap;
+    float pad1[2];
     Matrix4x4 uvTransformMatrix;
     float shininess;
     float pad2[3];

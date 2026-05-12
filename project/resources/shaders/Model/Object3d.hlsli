@@ -33,7 +33,8 @@ struct Material
 {
     float4 color;
     int enableLighting;
-    float3 padding1;
+    int useEnvironmentMap;
+    float2 padding1;
     float4x4 uvTransform;
     float shininess;
     float3 padding2;

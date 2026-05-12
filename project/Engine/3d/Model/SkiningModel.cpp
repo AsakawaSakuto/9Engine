@@ -401,22 +401,44 @@ void SkiningModel::Draw(Camera& useCamera, const Transform& transform) {
 	// 共通パラメータの設定
 	commandList_->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 	commandList_->SetGraphicsRootConstantBufferView(1, transformationResource_->GetGPUVirtualAddress());
-	
+
 	// デバッグ：使用するテクスチャインデックスをログ出力（最初の数フレームのみ）
 	static int debugFrameCount = 0;
 	if (debugFrameCount < 5) {
 		char debugBuffer[256];
 		sprintf_s(debugBuffer, "[SkiningModel::Draw] Using textureIndex: %u (textureName: %s)\n", 
-		          textureIndex_, textureName_.c_str());
+				  textureIndex_, textureName_.c_str());
 		OutputDebugStringA(debugBuffer);
 		debugFrameCount++;
 	}
-	
+
 	commandList_->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
 	commandList_->SetGraphicsRootConstantBufferView(3, directionalLightResource_->GetGPUVirtualAddress());
 	commandList_->SetGraphicsRootConstantBufferView(4, cameraResource_->GetGPUVirtualAddress());
 	commandList_->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
 	commandList_->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
+
+	// Skinningモデルの場合、MatrixPaletteを設定（rootParameter[7]）
+	if (animationType_ == AnimationType::SKINNING) {
+		commandList_->SetGraphicsRootDescriptorTable(7, skinCluster_.paletteSrvHandle.second);
+
+		// 環境マップ（CubeMap）の設定（rootParameter[8]）
+		if (useEnvironmentMap_) {
+			commandList_->SetGraphicsRootDescriptorTable(8, TextureManager::GetInstance()->GetSrvHandleGPU(environmentMapIndex_));
+		} else {
+			// 環境マップが未設定の場合はデフォルトテクスチャをバインド
+			commandList_->SetGraphicsRootDescriptorTable(8, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
+		}
+	} else {
+		// KEYFRAMEアニメーションの場合、Object3DのRootSignatureを使用
+		// 環境マップ（CubeMap）の設定（rootParameter[7]）
+		if (useEnvironmentMap_) {
+			commandList_->SetGraphicsRootDescriptorTable(7, TextureManager::GetInstance()->GetSrvHandleGPU(environmentMapIndex_));
+		} else {
+			// 環境マップが未設定の場合はデフォルトテクスチャをバインド
+			commandList_->SetGraphicsRootDescriptorTable(7, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
+		}
+	}
 
 	// フラスタムカリングのチェック
 	if (useDrawFrustumCulling_) {
@@ -440,25 +462,23 @@ void SkiningModel::Draw(Camera& useCamera, const Transform& transform) {
 			if (subMesh.materialIndex < textureIndices_.size()) {
 				texIndex = textureIndices_[subMesh.materialIndex];
 			}
-			
+
 			// テクスチャを設定
 			commandList_->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(texIndex));
-			
-			// Skinningモデルの場合、MatrixPaletteを設定
+
+			// Skinningモデルの場合、MatrixPaletteと環境マップを設定
 			if (animationType_ == AnimationType::SKINNING) {
 				commandList_->SetGraphicsRootDescriptorTable(7, skinCluster_.paletteSrvHandle.second);
+
+				// 環境マップは既に共通パラメータでバインド済みなので、ここでは不要
+				// （サブメッシュごとに変更する必要がないため）
 			}
-			
+
 			// サブメッシュを描画
 			commandList_->DrawIndexedInstanced(
 				subMesh.indexCount, 1, subMesh.indexStart, 0, 0);
 		}
 	} else {
-		// Skinningモデルの場合、MatrixPaletteを設定
-		if (animationType_ == AnimationType::SKINNING) {
-			commandList_->SetGraphicsRootDescriptorTable(7, skinCluster_.paletteSrvHandle.second);
-		}
-		
 		// 従来の単一マテリアル描画（後方互換性）
 		commandList_->DrawIndexedInstanced(
 			static_cast<UINT>(modelData_.indeces.size()), 1, 0, 0, 0);
@@ -473,17 +493,17 @@ void SkiningModel::SetTexture(const std::string& textureName) {
 		OutputDebugStringA(debugBuffer);
 		return;
 	}
-	
+
 	char debugBuffer[512];
 	sprintf_s(debugBuffer, "[SkiningModel] SetTexture: %s -> %s\n", textureName_.c_str(), textureName.c_str());
 	OutputDebugStringA(debugBuffer);
-	
+
 	textureName_ = textureName;
 	// .objの参照しているテクスチャファイル読み込み
 	TextureManager::GetInstance()->LoadTexture(textureName_);
 	// 読み込んだテクスチャの番号を取得
 	textureIndex_ = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureName_);
-	
+
 	// マルチマテリアル対応：すべてのマテリアルのテクスチャも更新
 	// サブメッシュがある場合、textureIndices_配列も更新する必要がある
 	if (!textureIndices_.empty()) {
@@ -494,9 +514,26 @@ void SkiningModel::SetTexture(const std::string& textureName) {
 		sprintf_s(debugBuffer, "[SkiningModel] Updated %zu material textures\n", textureIndices_.size());
 		OutputDebugStringA(debugBuffer);
 	}
-	
+
 	sprintf_s(debugBuffer, "[SkiningModel] New textureIndex: %u\n", textureIndex_);
 	OutputDebugStringA(debugBuffer);
+}
+
+void SkiningModel::SetEnvironmentMap(const std::string& textureName) {
+	// すでに同じ環境マップなら処理をスキップ
+	if (environmentMapName_ == textureName && useEnvironmentMap_) {
+		return;
+	}
+	environmentMapName_ = textureName;
+	// CubeMapテクスチャファイル読み込み
+	TextureManager::GetInstance()->LoadTexture(environmentMapName_);
+	// 読み込んだテクスチャの番号を取得
+	environmentMapIndex_ = TextureManager::GetInstance()->GetTextureIndexByFilePath(environmentMapName_);
+	useEnvironmentMap_ = true;
+	// マテリアルフラグを設定
+	if (materialData_) {
+		materialData_->useEnvironmentMap = 1;
+	}
 }
 
 Vector3 SkiningModel::GetWorldPosition() {
@@ -660,6 +697,7 @@ void SkiningModel::CreateMaterialResource() {
 	// 今回は赤を書き込んでみる（position に赤、texcoord は使わないなら 0.0）
 	materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白 (RGBA)
 	materialData_->enableLighting = true;
+	materialData_->useEnvironmentMap = 0; // 初期状態では環境マップ無効
 	materialData_->uvTransformMatrix = MakeIdentityMatrix();
 	materialData_->shininess = 100.0f;
 }

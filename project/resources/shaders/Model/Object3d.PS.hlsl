@@ -7,6 +7,7 @@ ConstantBuffer<PointLight> gPointLight : register(b4);
 ConstantBuffer<SpotLight> gSpotLight : register(b5);
 
 Texture2D<float4> gTexture : register(t0);
+TextureCube<float4> gEnvironmentMap : register(t1);
 SamplerState gSampler : register(s0);
 
 struct PixelShaderOutput
@@ -95,8 +96,22 @@ PixelShaderOutput main(VertexShaderOutput input)
             diffuse3 = 0.0f;
             specular3 = 0.0f;
         }
-        
-        output.color.rgb = diffuse1 + specular1 + diffuse2 + specular2 + diffuse3 + specular3;
+
+        // === 環境マッピング（CubeMap 鏡面反射） ===
+        float3 environmentReflection = float3(0.0f, 0.0f, 0.0f);
+        if (gMaterial.useEnvironmentMap != 0)
+        {
+            // カメラからピクセル位置へのベクトル（入射ベクトル）
+            float3 cameraToPosition = normalize(input.worldPosition - gCamera.worldPosition);
+            // 法線を軸に反射ベクトルを計算
+            float3 reflectionVector = reflect(cameraToPosition, N);
+            // CubeMap から環境光をサンプリング
+            float3 environmentColor = gEnvironmentMap.Sample(gSampler, reflectionVector).rgb;
+            // 環境光を鏡面反射成分として加算（強度を抑える）
+            environmentReflection = environmentColor * 0.02f;
+        }
+
+        output.color.rgb = diffuse1 + specular1 + diffuse2 + specular2 + diffuse3 + specular3 + environmentReflection;
         output.color.a = gMaterial.color.a * textureColor.a;
     }
     else

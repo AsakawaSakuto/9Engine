@@ -1,6 +1,5 @@
 #pragma once
 #include "2d/Sprite/SpriteDataStruct.h"
-
 #include "Math/Type/Transform.h"
 #include "Core/TextureManager/TextureManager.h"
 #include "Math/MatrixFunction/MatrixFunction.h"

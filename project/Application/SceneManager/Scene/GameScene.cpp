@@ -95,10 +95,10 @@ void GameScene::Initialize() {
 	postEffect->SetPostEffectType(PSOType::PostEffect_Fog);
 	postEffect->GetParams().fog.fogStart = 75.0f;
 	postEffect->GetParams().fog.fogEnd = 150.0f;
-	postEffect->GetParams().fog.fogDensity = 1.0f;
-	postEffect->GetParams().fog.fogColor[0] = 1.0f;
-	postEffect->GetParams().fog.fogColor[1] = 1.0f;
-	postEffect->GetParams().fog.fogColor[2] = 1.0f;
+	postEffect->GetParams().fog.fogDensity =  0.0f;
+	postEffect->GetParams().fog.fogColor[0] = 0.0f;
+	postEffect->GetParams().fog.fogColor[1] = 0.0f;
+	postEffect->GetParams().fog.fogColor[2] = 0.0f;
 
 	playTimer_.Start(300.0f, false);
 
@@ -114,6 +114,10 @@ void GameScene::Initialize() {
 	fadeInTimer_ = GameTimer(0.0f, false);
 	fadeOutTimer_ = GameTimer(1.0f, false);
 	fadeOutTimer_.Start(1.0f, false);
+
+	// SkyBoxの初期化
+	skyBox_.Initialize("resources/Image/rostock_laage_airport_4k.dds");
+	skyBox_.SetScale(1000.0f);
 }
 
 void GameScene::Update() {
@@ -337,7 +341,9 @@ void GameScene::Update() {
 
 void GameScene::Draw() {
 	
-	wall_->Draw(camera_, { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{105.0f,0.0f,105.0f} });
+	skyBox_.Draw(camera_);
+
+	//wall_->Draw(camera_, { {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{105.0f,0.0f,105.0f} });
 
 	// マップの描画
 	if (map3D_) {

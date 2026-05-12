@@ -321,6 +321,14 @@ void Model::Draw(Camera& useCamera, const Transform& transform) {
 	commandList_->SetGraphicsRootConstantBufferView(5, pointLightResource_->GetGPUVirtualAddress());
 	commandList_->SetGraphicsRootConstantBufferView(6, spotLightResource_->GetGPUVirtualAddress());
 
+	// 環境マップ（CubeMap）の設定
+	if (useEnvironmentMap_) {
+		commandList_->SetGraphicsRootDescriptorTable(7, TextureManager::GetInstance()->GetSrvHandleGPU(environmentMapIndex_));
+	} else {
+		// 環境マップが未設定の場合はデフォルトテクスチャ（t0と同じ）をバインド
+		commandList_->SetGraphicsRootDescriptorTable(7, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
+	}
+
 	// サブメッシュがある場合はマルチマテリアル描画
 	if (!modelData_.subMeshes.empty()) {
 		for (const auto& subMesh : modelData_.subMeshes) {
@@ -354,22 +362,39 @@ void Model::SetTexture(const std::string& textureName) {
 	TextureManager::GetInstance()->LoadTexture(textureName_);
 	// 読み込んだテクスチャの番号を取得
 	textureIndex_ = TextureManager::GetInstance()->GetTextureIndexByFilePath(textureName_);
-	
+
 	// マルチマテリアル対応：すべてのマテリアルのテクスチャも更新
 	if (!textureIndices_.empty()) {
 		for (size_t i = 0; i < textureIndices_.size(); ++i) {
 			textureIndices_[i] = textureIndex_;
 		}
 	}
-	
+
 	// UV変換をリセット（全体表示）
 	uvTransform_ = { {1.0f,1.0f}, 0.0f, {0.0f,0.0f} };
+}
+
+void Model::SetEnvironmentMap(const std::string& textureName) {
+	// すでに同じ環境マップなら処理をスキップ
+	if (environmentMapName_ == textureName && useEnvironmentMap_) {
+		return;
+	}
+	environmentMapName_ = textureName;
+	// CubeMapテクスチャファイル読み込み
+	TextureManager::GetInstance()->LoadTexture(environmentMapName_);
+	// 読み込んだテクスチャの番号を取得
+	environmentMapIndex_ = TextureManager::GetInstance()->GetTextureIndexByFilePath(environmentMapName_);
+	useEnvironmentMap_ = true;
+	// マテリアルフラグを設定
+	if (materialData_) {
+		materialData_->useEnvironmentMap = 1;
+	}
 }
 
 void Model::SetTextureWithRect(const std::string& textureName, const Vector2& topLeft, const Vector2& size) {
 	// テクスチャを設定
 	SetTexture(textureName);
-	
+
 	// UV座標の切り取り領域を設定
 	// topLeftは左上の座標、sizeは幅と高さ
 	// UV座標系は左上が(0,0)、右下が(1,1)
@@ -548,9 +573,10 @@ void Model::CreateMaterialResource() {
 	materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
 	// 今回は赤を書き込んでみる（position に赤、texcoord は使わないなら 0.0）
 	materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f }; // 白 (RGBA)
- 	materialData_->enableLighting = true;
- 	materialData_->uvTransformMatrix = MakeIdentityMatrix();
- 	materialData_->shininess = 10000.0f;
+	materialData_->enableLighting = true;
+	materialData_->useEnvironmentMap = 0; // 初期状態では環境マップ無効
+	materialData_->uvTransformMatrix = MakeIdentityMatrix();
+	materialData_->shininess = 10000.0f;
 }
 
 void Model::CreateTransformationResource() {

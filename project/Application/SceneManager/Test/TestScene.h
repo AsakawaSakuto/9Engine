@@ -4,6 +4,7 @@
 #include"Utility/Collision/Type/OBB.h"
 #include"Utility/Collision/Type/OvalSphere.h"
 #include"2d/Gauge/Gauge.h"
+#include"3d/SkyBox/SkyBox.h"
 
 using Microsoft::WRL::ComPtr;
 using std::unique_ptr;
@@ -23,5 +24,6 @@ private:
 	void CleanupResources();
 
 private:
-
+	DebugCamera debugCamera_;
+	SkyBox skyBox_;
 };
