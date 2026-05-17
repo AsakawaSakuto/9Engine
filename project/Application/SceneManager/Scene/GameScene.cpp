@@ -92,7 +92,7 @@ void GameScene::Initialize() {
 	auto postEffect = ServiceLocator::GetDXCommon()->GetPostEffectManager();
 	postEffect->SetEnabled(true);
 	postEffect->SetProjectionMatrix(camera_.GetProjectionMatrix());
-	postEffect->SetPostEffectType(PSOType::PostEffect_Fog);
+	postEffect->SetPostEffectType(PSOType::PostEffect_Grayscale);
 	postEffect->GetParams().fog.fogStart = 75.0f;
 	postEffect->GetParams().fog.fogEnd = 150.0f;
 	postEffect->GetParams().fog.fogDensity =  0.0f;
