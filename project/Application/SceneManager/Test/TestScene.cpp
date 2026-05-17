@@ -31,7 +31,7 @@ void TestScene::Initialize() {
 void TestScene::Update() {
 	debugCamera_.Update();
 
-	MyDebugLine::AddGrid(100.0f, 10.0f, WHITE);
+	MyDebugLine::AddGrid(100.0f, 10, WHITE);
 }
 
 void TestScene::Draw() {
