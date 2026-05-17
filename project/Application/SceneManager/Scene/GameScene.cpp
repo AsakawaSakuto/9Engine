@@ -116,7 +116,7 @@ void GameScene::Initialize() {
 	fadeOutTimer_.Start(1.0f, false);
 
 	// SkyBoxの初期化
-	skyBox_.Initialize("resources/Image/rostock_laage_airport_4k.dds");
+	skyBox_.Initialize("resources/Image/autumn_field_puresky_4k.dds");
 	skyBox_.SetScale(1000.0f);
 }
 

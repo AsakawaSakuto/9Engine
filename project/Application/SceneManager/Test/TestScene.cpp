@@ -22,6 +22,10 @@ void TestScene::Initialize() {
 	// SkyBoxの初期化
 	skyBox_.Initialize("resources/Image/rostock_laage_airport_4k.dds");
 	skyBox_.SetScale(1000.0f);
+
+	model_.Initialize("ball.obj");
+	model_.SetEnvironmentMap("resources/Image/rostock_laage_airport_4k.dds");
+	//model_.UseLight(false);
 }
 
 void TestScene::Update() {
@@ -33,6 +37,8 @@ void TestScene::Update() {
 void TestScene::Draw() {
 	// SkyBoxを最初に描画（遠景）
 	skyBox_.Draw(debugCamera_);
+	
+	model_.Draw(debugCamera_);
 
 	MyDebugLine::Draw(debugCamera_);
 }

@@ -26,4 +26,5 @@ private:
 private:
 	DebugCamera debugCamera_;
 	SkyBox skyBox_;
+	Model model_;
 };
