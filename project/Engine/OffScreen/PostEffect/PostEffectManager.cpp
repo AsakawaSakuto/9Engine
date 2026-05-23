@@ -190,7 +190,8 @@ void PostEffectManager::DrawImGui() {
         "Blur (ぼかし)",
         "Radial Blur (放射ブラー)",
         "Outline (輪郭検出)",
-        "Fog (フォグ)"
+        "Fog (フォグ)",
+        "Box Filter 3x3 (平滑化)"
     };
 
     int currentEffect = static_cast<int>(effectType_);
@@ -343,6 +344,13 @@ void PostEffectManager::DrawImGui() {
         {
             ImGui::Text("Invert Settings");
             ImGui::TextWrapped("色反転エフェクトにはパラメータはありません。");
+            break;
+        }
+
+        case PSOType::PostEffect_BoxFilter:
+        {
+            ImGui::Text("Box Filter 3x3 Settings");
+            ImGui::TextWrapped("3x3 ボックスフィルタによる平滑化エフェクトです。パラメータはありません。");
             break;
         }
 
