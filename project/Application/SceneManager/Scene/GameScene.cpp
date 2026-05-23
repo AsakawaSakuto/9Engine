@@ -92,7 +92,10 @@ void GameScene::Initialize() {
 	auto postEffect = ServiceLocator::GetDXCommon()->GetPostEffectManager();
 	postEffect->SetEnabled(true);
 	postEffect->SetProjectionMatrix(camera_.GetProjectionMatrix());
-	postEffect->SetPostEffectType(PSOType::PostEffect_Grayscale);
+	postEffect->SetPostEffectType(PSOType::PostEffect_Vignette);
+	postEffect->GetParams().vignette.radius = 0.15f;
+	postEffect->GetParams().vignette.smoothness = 5.f;
+	postEffect->GetParams().vignette.strength = 1.0f;
 	postEffect->GetParams().fog.fogStart = 75.0f;
 	postEffect->GetParams().fog.fogEnd = 150.0f;
 	postEffect->GetParams().fog.fogDensity =  0.0f;
@@ -385,6 +388,9 @@ void GameScene::DrawImGui() {
 	}
 	
 	gameSceneUI_->DrawImGui();
+
+	auto postEffect = ServiceLocator::GetDXCommon()->GetPostEffectManager();
+	postEffect->DrawImGui();
 #endif // USE_IMGUI
 }
 
