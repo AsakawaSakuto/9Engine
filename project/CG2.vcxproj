@@ -199,6 +199,7 @@
     <ClCompile Include="Engine\2d\BitmapFont\BitmapFont.cpp" />
     <ClCompile Include="Engine\2d\Gauge\Gauge.cpp" />
     <ClCompile Include="Engine\2d\TextRenderer\TextRenderer.cpp" />
+    <ClCompile Include="Engine\3d\Effect\Effect.cpp" />
     <ClCompile Include="Engine\3d\Line\Data\Line.cpp" />
     <ClCompile Include="Engine\3d\Line\LineManager.cpp" />
     <ClCompile Include="Engine\3d\Model\Data\Animation\Function\AnimationFunction.cpp" />
@@ -336,6 +337,9 @@
     <ClInclude Include="Engine\2d\Gauge\Gauge.h" />
     <ClInclude Include="Engine\2d\Sprite\SpriteDataStruct.h" />
     <ClInclude Include="Engine\2d\TextRenderer\TextRenderer.h" />
+    <ClInclude Include="Engine\3d\Effect\Effect.h" />
+    <ClInclude Include="Engine\3d\Effect\EffectFactory.h" />
+    <ClInclude Include="Engine\3d\Effect\EffectTypes.h" />
     <ClInclude Include="Engine\3d\Line\MyDebugLine.h" />
     <ClInclude Include="Engine\3d\Line\Data\Line.h" />
     <ClInclude Include="Engine\3d\Line\LineManager.h" />
@@ -509,6 +513,7 @@
       <SubType>
       </SubType>
     </None>
+    <None Include="Engine\3d\Effect\README.md" />
     <None Include="Engine\3d\Particles\ParticleEmitterShapes_Usage.md" />
     <None Include="Engine\Audio\AudioDocs.md">
       <SubType>

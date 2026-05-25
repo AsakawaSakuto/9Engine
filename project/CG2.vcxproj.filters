@@ -109,6 +109,7 @@
     <ClCompile Include="Application\SceneManager\Scene\StartScene.cpp" />
     <ClCompile Include="Application\Ranking\RankingManager.cpp" />
     <ClCompile Include="Engine\3d\SkyBox\SkyBox.cpp" />
+    <ClCompile Include="Engine\3d\Effect\Effect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\EngineSystem.h" />
@@ -264,6 +265,9 @@
     <ClInclude Include="Application\GameObject\EnemyManager\EnemySpawnConfig.h" />
     <ClInclude Include="Engine\Audio\AudioList.h" />
     <ClInclude Include="Engine\3d\SkyBox\SkyBox.h" />
+    <ClInclude Include="Engine\3d\Effect\EffectTypes.h" />
+    <ClInclude Include="Engine\3d\Effect\Effect.h" />
+    <ClInclude Include="Engine\3d\Effect\EffectFactory.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\Model\Object3d.hlsli" />
@@ -282,5 +286,6 @@
     <None Include="Engine\0_Docs\temp.md" />
     <None Include="Engine\0_Docs\Model.md" />
     <None Include="Engine\0_Docs\SkiningModel.md" />
+    <None Include="Engine\3d\Effect\README.md" />
   </ItemGroup>
 </Project>

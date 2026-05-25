@@ -5,6 +5,8 @@
 #include"Utility/Collision/Type/OvalSphere.h"
 #include"2d/Gauge/Gauge.h"
 #include"3d/SkyBox/SkyBox.h"
+#include"3d/Effect/Effect.h"
+#include"3d/Effect/EffectFactory.h"
 
 using Microsoft::WRL::ComPtr;
 using std::unique_ptr;
@@ -27,4 +29,9 @@ private:
 	DebugCamera debugCamera_;
 	SkyBox skyBox_;
 	Model model_;
+
+	// --- Effect ---
+	std::unique_ptr<Effect> hitEffect_;
+	std::unique_ptr<Effect> slashEffect_;
+	Vector3 effectSpawnPos_ = { 0.0f, 0.0f, 0.0f };
 };

@@ -3,7 +3,6 @@
 #include <wrl.h>
 #include <vector>
 #include <memory>
-
 #include "Core/DirectXCommon/DirectXCommon.h"
 #include "Camera/Camera.h"
 #include "Math/MatrixFunction/MatrixFunction.h"
